@@ -33,7 +33,7 @@ jobs:
           python -m pip install --upgrade pip
       - name: Install tools from pypi
         run: |
-          python -m pip install tox build extremal-python-dependencies==0.0.5
+          python -m pip install tox build 'extremal-python-dependencies<2'
       - name: Build Qiskit SDK development wheel
         run: |
           git clone https://github.com/Qiskit/qiskit
@@ -70,11 +70,25 @@ jobs:
         shell: bash
         run: >-
           extremal-python-dependencies pin-dependencies --inplace
-          "qiskit @ file:$(echo qiskit/dist/*.whl)"
-          "qiskit-ibm-runtime @ file:$(echo qiskit-ibm-runtime/dist/*.whl)"
-          "qiskit-addon-utils @ file:$(echo qiskit-addon-utils/dist/*.whl)"
-          "qiskit-quimb @ file:$(echo qiskit-quimb/dist/*.whl)"
-          "quimb @ file:$(echo quimb/dist/*.whl)"
+          "qiskit @ file:$PWD/$(echo qiskit/dist/*.whl)"
+          "qiskit-ibm-runtime @ file:$PWD/$(echo qiskit-ibm-runtime/dist/*.whl)"
+          "qiskit-addon-utils @ file:$PWD/$(echo qiskit-addon-utils/dist/*.whl)"
+          "qiskit-quimb @ file:$PWD/$(echo qiskit-quimb/dist/*.whl)"
+          "quimb @ file:$PWD/$(echo quimb/dist/*.whl)"
+      # The scientific-python nightly channel already publishes scipy, so
+      # it is downloaded rather than built.
+      #
+      # Its wheels start at cp312, so the 3.11 leg has nothing to download
+      # and keeps testing against a released scipy.
+      - name: Pin scipy pre-release
+        if: matrix.python-version != '3.11'
+        shell: bash
+        run: |
+          pip download --no-deps --pre -d scipy-prerelease \
+            -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple \
+            scipy
+          extremal-python-dependencies pin-dependencies --inplace \
+            "scipy @ file:$PWD/$(echo scipy-prerelease/*.whl)"
       - name: Test using tox environment
         run: |
           tox -e py,notebook,quimb-only,aer-only --parallel --parallel-no-spinner
